@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8"/>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6" crossorigin="anonymous">
+<!-- <style type="text/css">
+      body{margin:40px auto;max-width:650px;line-height:1.6;font-family:"aktiv-grotesk-std",sans-serif;font-size:27px;color:#444;padding:0 10px}
+      h1,h2,h3{line-height:1.4}
+      a{color:#444;text-decoration:none;}
+      header {font-size:162px;margin-bottom:40px;}
+      article{margin: 140px 0}
+      article:hover h1{color:#FF5733;-webkit-transition:300ms ease-in;-moz-transition:300ms ease-in;-o-transition:300ms ease-in;transition:300ms ease-in;}
+      .link {color:#B03A2E;-webkit-transition:300ms ease-in;-moz-transition:300ms ease-in;-o-transition:300ms ease-in;transition:300ms ease-in;}
+      .link:hover {color:#FF5733;-webkit-transition:300ms ease-in;-moz-transition:300ms ease-in;-o-transition:300ms ease-in;transition:300ms ease-in;}
+      footer {margin-top: 140px;}
+      footer a{margin-right:140px;}
+      h1, h2 {-webkit-transition:300ms ease-in;-moz-transition:300ms ease-in;-o-transition:300ms ease-in;transition:300ms ease-in;font-weight: normal;}
+      h1 {font-size: 54px}
+      h2 {font-size: 27px}
+  </style> -->
+</head>
+<body>
+
+<div class="container">
+    <h2>Teachable Machine Image Model</2>
+
+    <!-- <audio id="yes-audio">
+      <source src="https://www.fesliyanstudios.com/play-mp3/6981" type="audio/mpeg">
+      Your browser does not support HTML5 audio.
+    </audio>
+    <audio id="no-audio">
+      <source src="https://www.fesliyanstudios.com/play-mp3/4221" type="audio/mpeg">
+      Your browser does not support HTML5 audio.
+    </audio> -->
+
+    <div class="mb-3 mt-3">
+      <!-- <label for="exampleFormControlInput1" class="form-label">URL to teachable machine Model</label> -->
+      <input type="url" class="form-control" id="url" placeholder="URL to teachable machine Model">
+    </div>
+    <div class="mb-3">
+      <button type="button" class="btn btn-outline-primary" onclick="store()" >Add TM Model</button>
+      <button type="button" class="btn btn-outline-secondary" onclick="reset()" >Reset to default</button>
+    </div>
+
+    <button type="button" class="btn btn-primary" onclick="init()" >Start Webcam</button>
+
+
+    <!-- <button type="button" style="margin: 50 auto; background-color: coral" onclick="init()">Start</button> -->
+    <div id="webcam-container"></div>
+    <div id="label-container"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+<script type="text/javascript">
+    // More API functions here:
+    // https://github.com/googlecreativelab/teachablemachine-community/tree/master/libraries/image
+
+    // the link to your model provided by Teachable Machine export panel
+    console.log("logging")
+
+    function populateStorage() {
+      
+    }
+
+    function store() {
+        var inputUrl= document.getElementById("url");
+        console.log(inputUrl.value)
+        saveToLocalStorage(inputUrl.value)
+    }
+
+    function saveToLocalStorage(el) {
+        localStorage.setItem('url', el)
+    }
+
+    function reset() {
+        localStorage.setItem("url", "https://teachablemachine.withgoogle.com/models/8CVmQ8E3A/")
+        let a = localStorage.getItem('url')
+        console.log("reset triggered")
+        console.log(a)
+    }
+
+    let model, webcam, labelContainer, maxPredictions;
+
+    // Load the image model and setup the webcam
+    async function init() {
+        const URL = "https://teachablemachine.withgoogle.com/models/8CVmQ8E3A/";
+
+        localStorage.setItem('url', URL);
+    
+        let ls = localStorage.getItem('url');
+        console.log(ls)
+
+        let myurl = localStorage.getItem('url');
+        const modelURL = myurl + "model.json";
+        const metadataURL = myurl + "metadata.json";
+
+        // load the model and metadata
+        // Refer to tmImage.loadFromFiles() in the API to support files from a file picker
+        // or files from your local hard drive
+        // Note: the pose library adds "tmImage" object to your window (window.tmImage)
+        model = await tmImage.load(modelURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
+
+        // Convenience function to setup a webcam
+        const flip = true; // whether to flip the webcam
+        webcam = new tmImage.Webcam(200, 200, flip); // width, height, flip
+        await webcam.setup(); // request access to the webcam
+        await webcam.play();
+        window.requestAnimationFrame(loop);
+
+        // append elements to the DOM
+        document.getElementById("webcam-container").appendChild(webcam.canvas);
+        labelContainer = document.getElementById("label-container");
+        for (let i = 0; i < maxPredictions; i++) { // and class labels
+            labelContainer.appendChild(document.createElement("div"));
+        }
+    }
+
+    async function loop() {
+        webcam.update(); // update the webcam frame
+        await predict();
+        window.requestAnimationFrame(loop);
+    }
+
+    // run the webcam image through the image model
+    async function predict() {
+        // predict can take in an image, video or canvas html element
+        const prediction = await model.predict(webcam.canvas);
+        for (let i = 0; i < maxPredictions; i++) {
+            const classPrediction =
+                prediction[i].className + ": " + prediction[i].probability.toFixed(2);
+            labelContainer.childNodes[i].innerHTML = classPrediction;
+
+
+            if (prediction[1].probability.toFixed(2) >= 0.95) {
+                 document.body.style.backgroundColor = "red";
+            }
+            else if (prediction[0].probability.toFixed(2) >= 0.95) {
+                document.body.style.backgroundColor = "green";
+            } else {
+                document.body.style.backgroundColor = "white";
+                
+            }
+
+            // if (prediction[0].probability.toFixed(2) >= 0.85) {
+            //      pauseAud();
+            // }
+            // else if (prediction[1].probability.toFixed(2) >= 0.85) {
+            //     pauseAud();
+            //     playAud(noAudio);
+            // } else {
+            //     pauseAud();
+                
+            // }
+        }
+    }
+
+    let yesAudio = document.getElementById("yes-audio");
+    let noAudio = document.getElementById("no-audio");
+    let audio = document.getElementsByTagName("audio")[0];
+
+    console.log(yesAudio)
+    console.log(noAudio)
+    console.log(audio)
+    
+    function playAud(aud) { 
+       aud.play(); 
+     }
+
+    function pauseAud() { 
+       audio.pause(); 
+     }
+
+</script>
+</body>
+</html>
